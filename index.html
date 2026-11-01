@@ -200,11 +200,10 @@
 
       alert("กำลังส่งออเดอร์และตัดสต็อก...");
       try {
+        // ใช้โหมด no-cors เพื่อตัดปัญหา Failed to fetch ข้ามโดเมนจาก LINE/Browser
         await fetch(GAS_WEB_APP_URL, {
           method: "POST",
           mode: "no-cors",
-          mode: "cors",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
@@ -221,7 +220,6 @@
       } catch (err) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
-    }
 
     init();
   </script>
