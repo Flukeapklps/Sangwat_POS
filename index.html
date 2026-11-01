@@ -204,7 +204,7 @@
       }
     }
 
-    async function submitOrder() {
+async function submitOrder() {
       const selectedItems = menuData
         .filter(item => (cart[item.id] || 0) > 0)
         .map(item => ({
@@ -229,13 +229,35 @@
       };
 
       alert("กำลังส่งออเดอร์และตัดสต็อก...");
-      try {
-        await fetch(GAS_WEB_APP_URL, {
-          method: "POST",
-          mode: "no-cors",
-          body: JSON.stringify(payload)
-        });
 
+      try {
+        // ใช้เทคนิคซ่อนฟอร์ม POST ไปยัง GAS โดยตรงเพื่อหลบเลี่ยงข้อจำกัด CORS ของ fetch
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = GAS_WEB_APP_URL;
+        form.target = 'hidden_iframe'; // ส่งไปที่ iframe ที่ซ่อนไว้เพื่อให้หน้าเว็บไม่รีโหลด
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'data';
+        input.value = JSON.stringify(payload);
+
+        form.appendChild(input);
+        
+        let iframe = document.getElementById('hidden_iframe');
+        if (!iframe) {
+          iframe = document.createElement('iframe');
+          iframe.name = 'hidden_iframe';
+          iframe.id = 'hidden_iframe';
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // แจ้งเตือนสำเร็จทันทีโดยไม่ต้องรอ Response จาก GAS
         let summaryText = `🧾 สั่งซื้อสำเร็จ (${currentOrderType})\n`;
         selectedItems.forEach(i => { summaryText += `• ${i.name} x${i.qty} = ${i.price * i.qty} บ.\n`; });
         summaryText += `\n💰 ยอดโอน: ${totalPrice} บาท\n✅ แนบสลิปเรียบร้อย`;
@@ -246,6 +268,7 @@
 
         alert("สั่งซื้อสำเร็จ!");
         liff.closeWindow();
+
       } catch (err) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
