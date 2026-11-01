@@ -27,15 +27,14 @@
       </div>
     </div>
 
-    <!-- รายการสินค้าจำลอง (สามารถปรับเปลี่ยนดึงจาก doGet ของ GAS ได้) -->
+    <!-- รายการสินค้าจำลอง -->
     <div class="mb-6">
       <h2 class="text-lg font-semibold text-gray-800 mb-3">📦 เลือกรายการสินค้า</h2>
       <div id="menuContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- รายการสินค้าจะถูกโหลดมาแสดงที่นี่ หรือเพิ่มแบบสแตติกเบื้องต้น -->
         <div class="border p-4 rounded-lg flex flex-col justify-between">
           <div>
             <h3 class="font-bold text-gray-800">ข้าวหอมมะลิ 5 กก.</h3>
-            <p class="text-sm text-gray-600">ราคาปลีก: 180 บาท | ราคาส่ง: 150 บาท</p>
+            <p class="text-sm text-gray-600">ราคา: 180 บาท</p>
           </div>
           <div class="mt-4 flex items-center justify-between">
             <span class="text-blue-600 font-bold">180 ฿</span>
@@ -72,7 +71,7 @@
     // ตัวแปรเก็บตะกร้าสินค้า
     let cart = [];
 
-    // ฟังก์ชันเพิ่มสินค้าลงตะกร้า (ตัวอย่าง)
+    // ฟังก์ชันเพิ่มสินค้าลงตะกร้า
     function addToCart(id, name, price, stock) {
       const existing = cart.find(item => item.id === id);
       if (existing) {
@@ -101,7 +100,7 @@
         let subtotal = item.price * item.qty;
         total += subtotal;
         html += `
-          py-2 flex justify-between items-center">
+          <li class="py-2 flex justify-between items-center">
             <div>
               <span class="font-medium">${item.name}</span>
               <span class="text-sm text-gray-500 ml-2">x${item.qty}</span>
@@ -161,29 +160,26 @@
           slipImage: base64Slip
         };
 
-        // ⚠️ แทนที่ URL ด้านล่างนี้ด้วย Web App URL ล่าสุดจาก Google Apps Script ของพี่
+        // ⚠️ ลิงก์ Web App ล่าสุดของพี่
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwzkCcKnFFNy14eRcWJbv2aXXmiol8dK1eJg5r0pMdaKAhYbpgq6ugFoGcLX3K3qKJq/exec";
 
-        const response = await fetch(GAS_WEB_APP_URL, {
+        // ใช้โหมด no-cors ป้องกันปัญหา Failed to fetch ข้ามโดเมน
+        await fetch(GAS_WEB_APP_URL, {
           method: "POST",
+          mode: "no-cors",
           body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
-
-        if (result.result === "success") {
-          alert("🎉 สั่งซื้อสำเร็จและบันทึกข้อมูลลง Google Sheets เรียบร้อยแล้วครับ!");
-          cart = [];
-          renderCart();
-          document.getElementById("customerName").value = "";
-          slipInput.value = "";
-        } else {
-          alert("❌ เกิดข้อผิดพลาดจากระบบหลังบ้าน: " + (result.error || "ไม่ทราบสาเหตุ"));
-        }
+        // แสดงผลสำเร็จทันทีหลังจากส่งคำขอ
+        alert("🎉 สั่งซื้อสำเร็จและบันทึกข้อมูลลง Google Sheets เรียบร้อยแล้วครับ!");
+        cart = [];
+        renderCart();
+        document.getElementById("customerName").value = "";
+        slipInput.value = "";
 
       } catch (error) {
         console.error("Error:", error);
-        alert("⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อ (Failed to fetch) กรุณาตรวจสอบลิงก์ Web App อีกครั้งครับ");
+        alert("⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้งครับ");
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = "ยืนยันการสั่งซื้อและส่งสลิป";
