@@ -27,14 +27,14 @@
       </div>
     </div>
 
-    <!-- รายการสินค้าจำลอง -->
+    <!-- รายการสินค้าจำลอง (UI เดิม) -->
     <div class="mb-6">
       <h2 class="text-lg font-semibold text-gray-800 mb-3">📦 เลือกรายการสินค้า</h2>
       <div id="menuContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="border p-4 rounded-lg flex flex-col justify-between">
+        <div class="border p-4 rounded-lg flex flex-col justify-between shadow-sm">
           <div>
             <h3 class="font-bold text-gray-800">ข้าวหอมมะลิ 5 กก.</h3>
-            <p class="text-sm text-gray-600">ราคา: 180 บาท</p>
+            <p class="text-sm text-gray-600">ราคาปลีก: 180 บาท | ราคาส่ง: 150 บาท</p>
           </div>
           <div class="mt-4 flex items-center justify-between">
             <span class="text-blue-600 font-bold">180 ฿</span>
@@ -62,7 +62,7 @@
     </div>
 
     <!-- ปุ่มยืนยันสั่งซื้อ -->
-    <button id="submitBtn" onclick="submitOrder()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition">
+    <button id="submitBtn" onclick="submitOrder()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition shadow">
       ยืนยันการสั่งซื้อและส่งสลิป
     </button>
   </div>
@@ -82,7 +82,7 @@
       renderCart();
     }
 
-    // ฟังก์ชันแสดงผลตะกร้า
+    // ฟังก์ชันแสดงผลตะกร้า (รูปแบบ UI เดิม)
     function renderCart() {
       const cartList = document.getElementById("cartList");
       const totalPriceDisplay = document.getElementById("totalPriceDisplay");
@@ -102,11 +102,11 @@
         html += `
           <li class="py-2 flex justify-between items-center">
             <div>
-              <span class="font-medium">${item.name}</span>
+              <span class="font-medium text-gray-800">${item.name}</span>
               <span class="text-sm text-gray-500 ml-2">x${item.qty}</span>
             </div>
             <div class="flex items-center gap-4">
-              <span class="font-semibold">${subtotal} ฿</span>
+              <span class="font-semibold text-gray-700">${subtotal} ฿</span>
               <button onclick="removeFromCart(${index})" class="text-red-500 text-sm hover:underline">ลบ</button>
             </div>
           </li>
@@ -163,14 +163,13 @@
         // ⚠️ ลิงก์ Web App ล่าสุดของพี่
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwzkCcKnFFNy14eRcWJbv2aXXmiol8dK1eJg5r0pMdaKAhYbpgq6ugFoGcLX3K3qKJq/exec";
 
-        // ใช้โหมด no-cors ป้องกันปัญหา Failed to fetch ข้ามโดเมน
+        // ส่งข้อมูลแบบ no-cors ป้องกัน Failed to fetch
         await fetch(GAS_WEB_APP_URL, {
           method: "POST",
           mode: "no-cors",
           body: JSON.stringify(payload)
         });
 
-        // แสดงผลสำเร็จทันทีหลังจากส่งคำขอ
         alert("🎉 สั่งซื้อสำเร็จและบันทึกข้อมูลลง Google Sheets เรียบร้อยแล้วครับ!");
         cart = [];
         renderCart();
