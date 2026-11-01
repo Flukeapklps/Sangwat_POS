@@ -11,7 +11,7 @@
     .page { display: none; }
     .page.active { display: block; }
 
-    /* Dashboard Style (สไตล์เมนูกลุ่มสนามแบดฯ) */
+    /* Dashboard Style */
     .header-banner { background: #111; color: white; padding: 20px; border-radius: 14px; margin-bottom: 16px; text-align: center; }
     .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .menu-card { background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer; text-align: center; }
@@ -86,8 +86,16 @@
     let menuData = [];
 
     async function init() {
-      await liff.init({ liffId: LIFF_ID });
-      if (liff.isLoggedIn()) { userProfile = await liff.getProfile(); } else { liff.login(); }
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (liff.isLoggedIn()) { 
+          userProfile = await liff.getProfile(); 
+        } else { 
+          liff.login(); 
+        }
+      } catch (e) {
+        console.log("LIFF Init running outside LINE app or simulated");
+      }
       await fetchMenu();
     }
 
@@ -95,7 +103,10 @@
       try {
         const res = await fetch(GAS_WEB_APP_URL);
         menuData = await res.json();
-      } catch (err) { console.error("โหลดข้อมูลไม่สำเร็จ"); }
+      } catch (err) { 
+        console.error("โหลดข้อมูลไม่สำเร็จ", err);
+        document.getElementById("menu-container").innerHTML = "ไม่สามารถโหลดรายการสินค้าได้";
+      }
     }
 
     function switchPage(pageId) {
@@ -106,13 +117,18 @@
     async function openShop(type) {
       currentOrderType = type;
       document.getElementById("shop-title").innerText = `รายการสินค้า (ราคา${type})`;
-      await fetchMenu(); // โหลดสต็อกล่าสุดจาก Google Sheets ทุกครั้งที่เปิดหน้าเว็บ
+      await fetchMenu(); 
       renderMenu();
       switchPage('view-shop');
     }
 
     function renderMenu() {
       const container = document.getElementById("menu-container");
+      if (!menuData || menuData.length === 0) {
+        container.innerHTML = "ไม่พบรายการสินค้า";
+        return;
+      }
+
       container.innerHTML = menuData.map(item => {
         let price = currentOrderType === "ปลีก" ? item.retailPrice : item.wholesalePrice;
         let isOutOfStock = item.stock <= 0;
@@ -165,12 +181,26 @@
 
     function previewSlip(input) {
       if (input.files && input.files[0]) {
+        const file = input.files[0];
         const reader = new FileReader();
         reader.onload = function(e) {
-          base64Slip = e.target.result;
-          document.getElementById("preview").innerHTML = `<img src="${base64Slip}" style="max-width: 100px; border-radius: 6px;">`;
+          const img = new Image();
+          img.src = e.target.result;
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const scaleSize = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height > img.width ? img.height * scaleSize : (img.height * scaleSize);
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            base64Slip = canvas.toDataURL('image/jpeg', 0.7);
+            document.getElementById("preview").innerHTML = `<img src="${base64Slip}" style="max-width: 100px; border-radius: 6px;">`;
+          }
         }
-        reader.readAsDataURL(input.files[0]);
+        reader.readAsDataURL(file);
       }
     }
 
@@ -200,7 +230,6 @@
 
       alert("กำลังส่งออเดอร์และตัดสต็อก...");
       try {
-        // ใช้โหมด no-cors เพื่อตัดปัญหา Failed to fetch ข้ามโดเมนจาก LINE/Browser
         await fetch(GAS_WEB_APP_URL, {
           method: "POST",
           mode: "no-cors",
@@ -220,6 +249,7 @@
       } catch (err) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
+    }
 
     init();
   </script>
