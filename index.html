@@ -3,226 +3,202 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบสั่งซื้อสินค้า</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: #f8f9fa; margin: 0; padding: 16px; padding-bottom: 90px; }
-    .page { display: none; }
-    .page.active { display: block; }
-
-    /* Dashboard Style (สไตล์เมนูกลุ่มสนามแบดฯ) */
-    .header-banner { background: #111; color: white; padding: 20px; border-radius: 14px; margin-bottom: 16px; text-align: center; }
-    .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .menu-card { background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer; text-align: center; }
-    .menu-card h3 { margin: 8px 0 4px; font-size: 16px; color: #333; }
-    .menu-card p { margin: 0; font-size: 12px; color: #777; }
-    .icon { font-size: 28px; }
-
-    .back-btn { background: none; border: none; font-size: 16px; color: #007aff; cursor: pointer; margin-bottom: 12px; padding: 0; }
-    
-    /* Product Card & Stock Badge */
-    .product-card { background: white; border-radius: 10px; padding: 12px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative; }
-    .product-card img { width: 65px; height: 65px; object-fit: cover; border-radius: 6px; }
-    .stock-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; margin-top: 4px; }
-    .stock-ok { background: #e3fcef; color: #00875a; }
-    .stock-out { background: #ffebe6; color: #de350b; }
-
-    .upload-box { background: white; padding: 16px; border-radius: 10px; margin-top: 16px; }
-    .footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 16px; border-top: 1px solid #e5e5ea; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
-    .btn-submit { background: #06C755; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-  </style>
+  <title>ระบบ POS สั่งซื้อสินค้า</title>
+  <!-- Tailwind CSS สำหรับตกแต่งหน้าตาให้สวยงามทันสมัย -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen p-4">
 
-  <!-- หน้าที่ 1: Dashboard เมนูหลัก -->
-  <div id="view-dashboard" class="page active">
-    <div class="header-banner">
-      <h2 style="margin:0;">🌾 ร้านค้าออนไลน์</h2>
-      <p style="margin:4px 0 0; font-size: 13px; color: #aaa;">เลือกเมนูด้านล่างได้เลยครับ</p>
-    </div>
+  <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">🛒 ระบบสั่งซื้อสินค้า POS</h1>
 
-    <div class="menu-grid">
-      <div class="menu-card" onclick="openShop('ปลีก')">
-        <div class="icon">🛍️</div>
-        <h3>สั่งซื้อปลีก</h3>
-        <p>ราคาปลีก</p>
+    <!-- ข้อมูลลูกค้าและประเภทการสั่งซื้อ -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div>
+        <label class="block text-gray-700 font-medium mb-2">ชื่อลูกค้า (Display Name)</label>
+        <input type="text" id="customerName" placeholder="ระบุชื่อลูกค้าของคุณ" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
-      <div class="menu-card" onclick="openShop('ส่ง')">
-        <div class="icon">📦</div>
-        <h3>สั่งซื้อราคาส่ง</h3>
-        <p>ราคาส่งตัวแทน</p>
+      <div>
+        <label class="block text-gray-700 font-medium mb-2">ประเภทการสั่งซื้อ</label>
+        <select id="orderType" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="ปลีก">ราคาปลีก</option>
+          <option value="ส่ง">ราคาส่ง</option>
+        </select>
       </div>
     </div>
-  </div>
 
-  <!-- หน้าที่ 2: หน้าเลือกสินค้า & สต็อก & แนบสลิป -->
-  <div id="view-shop" class="page">
-    <button class="back-btn" onclick="switchPage('view-dashboard')">⬅ กลับหน้าหลัก</button>
-    <h2 id="shop-title" style="margin-top:0;">รายการสินค้า</h2>
-
-    <div id="menu-container">กำลังโหลดข้อมูล...</div>
-
-    <div class="upload-box">
-      <strong>📸 แนบสลิปโอนเงิน</strong><br><br>
-      <input type="file" id="slipFile" accept="image/*" onchange="previewSlip(this)">
-      <div id="preview" style="margin-top: 8px;"></div>
+    <!-- รายการสินค้าจำลอง (สามารถปรับเปลี่ยนดึงจาก doGet ของ GAS ได้) -->
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">📦 เลือกรายการสินค้า</h2>
+      <div id="menuContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- รายการสินค้าจะถูกโหลดมาแสดงที่นี่ หรือเพิ่มแบบสแตติกเบื้องต้น -->
+        <div class="border p-4 rounded-lg flex flex-col justify-between">
+          <div>
+            <h3 class="font-bold text-gray-800">ข้าวหอมมะลิ 5 กก.</h3>
+            <p class="text-sm text-gray-600">ราคาปลีก: 180 บาท | ราคาส่ง: 150 บาท</p>
+          </div>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-blue-600 font-bold">180 ฿</span>
+            <button onclick="addToCart(1, 'ข้าวหอมมะลิ 5 กก.', 180, 50)" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">เพิ่มลงตะกร้า</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="footer">
-      <div>รวม: <strong id="total-price" style="color: #06C755; font-size: 18px;">0</strong> บาท</div>
-      <button class="btn-submit" onclick="submitOrder()">ยืนยันการสั่งซื้อ</button>
+    <!-- ตะกร้าสินค้า -->
+    <div class="mb-6 border-t pt-4">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">🛍️ ตะกร้าสินค้าของคุณ</h2>
+      <div id="cartList" class="bg-gray-50 p-4 rounded-lg mb-3 min-h-[80px]">
+        <p class="text-gray-500 text-sm">ยังไม่มีสินค้าในตะกร้า</p>
+      </div>
+      <div class="text-right font-bold text-xl text-gray-800">
+        ราคารวมทั้งหมด: <span id="totalPriceDisplay" class="text-green-600">0</span> บาท
+      </div>
     </div>
+
+    <!-- แนบสลิปโอนเงิน -->
+    <div class="mb-6 border-t pt-4">
+      <label class="block text-gray-700 font-medium mb-2">📸 แนบรูปสลิปการโอนเงิน</label>
+      <input type="file" id="slipFileInput" accept="image/*" class="w-full border rounded-lg p-2 bg-gray-50">
+    </div>
+
+    <!-- ปุ่มยืนยันสั่งซื้อ -->
+    <button id="submitBtn" onclick="submitOrder()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition">
+      ยืนยันการสั่งซื้อและส่งสลิป
+    </button>
   </div>
 
   <script>
-    const LIFF_ID = "2012314135-ME3zWX4s";
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwzkCcKnFFNy14eRcWJbv2aXXmiol8dK1eJg5r0pMdaKAhYbpgq6ugFoGcLX3K3qKJq/exec";
+    // ตัวแปรเก็บตะกร้าสินค้า
+    let cart = [];
 
-    let currentOrderType = "ปลีก";
-    let cart = {};
-    let userProfile = null;
-    let base64Slip = "";
-    let menuData = [];
-
-    async function init() {
-      await liff.init({ liffId: LIFF_ID });
-      if (liff.isLoggedIn()) { userProfile = await liff.getProfile(); } else { liff.login(); }
-      await fetchMenu();
-    }
-
-    async function fetchMenu() {
-      try {
-        const res = await fetch(GAS_WEB_APP_URL);
-        menuData = await res.json();
-      } catch (err) { console.error("โหลดข้อมูลไม่สำเร็จ"); }
-    }
-
-    function switchPage(pageId) {
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.getElementById(pageId).classList.add('active');
-    }
-
-    async function openShop(type) {
-      currentOrderType = type;
-      document.getElementById("shop-title").innerText = `รายการสินค้า (ราคา${type})`;
-      await fetchMenu(); // โหลดสต็อกล่าสุดจาก Google Sheets ทุกครั้งที่เปิดหน้าเว็บ
-      renderMenu();
-      switchPage('view-shop');
-    }
-
-    function renderMenu() {
-      const container = document.getElementById("menu-container");
-      container.innerHTML = menuData.map(item => {
-        let price = currentOrderType === "ปลีก" ? item.retailPrice : item.wholesalePrice;
-        let isOutOfStock = item.stock <= 0;
-        let stockBadge = isOutOfStock 
-          ? `<span class="stock-badge stock-out">🔴 สินค้าหมด</span>` 
-          : `<span class="stock-badge stock-ok">🟢 คงเหลือ: ${item.stock} ชิ้น</span>`;
-
-        return `
-          <div class="product-card">
-            <img src="${item.img}" alt="${item.name}">
-            <div style="flex-grow: 1;">
-              <strong>${item.name}</strong><br>
-              <span style="font-size: 13px; color: #666;">ราคา: ${price} บาท</span><br>
-              ${stockBadge}
-            </div>
-            <div>
-              ${isOutOfStock ? '<span style="color:#999; font-size:12px;">หมด</span>' : `
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button onclick="updateQty(${item.id}, -1)">-</button>
-                  <span id="qty-${item.id}">${cart[item.id] || 0}</span>
-                  <button onclick="updateQty(${item.id}, 1, ${item.stock})">+</button>
-                </div>
-              `}
-            </div>
-          </div>
-        `;
-      }).join("");
-      calculateTotal();
-    }
-
-    function updateQty(id, change, maxStock) {
-      cart[id] = (cart[id] || 0) + change;
-      if (cart[id] < 0) cart[id] = 0;
-      if (cart[id] > maxStock) {
-        alert("เกินจำนวนสินค้าที่มีในสต็อกครับ");
-        cart[id] = maxStock;
+    // ฟังก์ชันเพิ่มสินค้าลงตะกร้า (ตัวอย่าง)
+    function addToCart(id, name, price, stock) {
+      const existing = cart.find(item => item.id === id);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ id: id, name: name, price: price, type: "ปลีก", qty: 1 });
       }
-      document.getElementById(`qty-${id}`).innerText = cart[id];
-      calculateTotal();
+      renderCart();
     }
 
-    function calculateTotal() {
+    // ฟังก์ชันแสดงผลตะกร้า
+    function renderCart() {
+      const cartList = document.getElementById("cartList");
+      const totalPriceDisplay = document.getElementById("totalPriceDisplay");
+
+      if (cart.length === 0) {
+        cartList.innerHTML = '<p class="text-gray-500 text-sm">ยังไม่มีสินค้าในตะกร้า</p>';
+        totalPriceDisplay.innerText = "0";
+        return;
+      }
+
+      let html = '<ul class="divide-y divide-gray-200">';
       let total = 0;
-      menuData.forEach(item => {
-        let price = currentOrderType === "ปลีก" ? item.retailPrice : item.wholesalePrice;
-        total += (cart[item.id] || 0) * price;
+
+      cart.forEach((item, index) => {
+        let subtotal = item.price * item.qty;
+        total += subtotal;
+        html += `
+          py-2 flex justify-between items-center">
+            <div>
+              <span class="font-medium">${item.name}</span>
+              <span class="text-sm text-gray-500 ml-2">x${item.qty}</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="font-semibold">${subtotal} ฿</span>
+              <button onclick="removeFromCart(${index})" class="text-red-500 text-sm hover:underline">ลบ</button>
+            </div>
+          </li>
+        `;
       });
-      document.getElementById("total-price").innerText = total;
+      html += '</ul>';
+      cartList.innerHTML = html;
+      totalPriceDisplay.innerText = total;
     }
 
-    function previewSlip(input) {
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          base64Slip = e.target.result;
-          document.getElementById("preview").innerHTML = `<img src="${base64Slip}" style="max-width: 100px; border-radius: 6px;">`;
-        }
-        reader.readAsDataURL(input.files[0]);
-      }
+    function removeFromCart(index) {
+      cart.splice(index, 1);
+      renderCart();
     }
 
+    // ฟังก์ชันส่งออเดอร์ไปยัง Google Apps Script
     async function submitOrder() {
-      const selectedItems = menuData
-        .filter(item => (cart[item.id] || 0) > 0)
-        .map(item => ({
-          id: item.id,
-          name: item.name,
-          type: currentOrderType,
-          price: currentOrderType === "ปลีก" ? item.retailPrice : item.wholesalePrice,
-          qty: cart[item.id]
-        }));
+      const displayName = document.getElementById("customerName").value.trim();
+      const orderType = document.getElementById("orderType").value;
+      const slipInput = document.getElementById("slipFileInput");
 
-      if (selectedItems.length === 0) { alert("กรุณาเลือกสินค้า"); return; }
-      if (!base64Slip) { alert("กรุณาแนบสลิปการโอนเงิน"); return; }
+      if (!displayName) {
+        alert("กรุณากรอกชื่อลูกค้าก่อนยืนยันออเดอร์ครับ!");
+        return;
+      }
 
-      const totalPrice = document.getElementById("total-price").innerText;
-      const payload = {
-        userId: userProfile ? userProfile.userId : "Guest",
-        displayName: userProfile ? userProfile.displayName : "Customer",
-        orderType: currentOrderType,
-        items: selectedItems,
-        totalPrice: Number(totalPrice),
-        slipImage: base64Slip
-      };
+      if (cart.length === 0) {
+        alert("กรุณาเลือกสินค้าอย่างน้อย 1 รายการครับ!");
+        return;
+      }
 
-      alert("กำลังส่งออเดอร์และตัดสต็อก...");
+      if (!slipInput.files || slipInput.files.length === 0) {
+        alert("กรุณาแนบรูปสลิปการโอนเงินก่อนยืนยันออเดอร์ครับ!");
+        return;
+      }
+
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = true;
+      submitBtn.innerText = "กำลังประมวลผลและอัปโหลดสลิป...";
+
       try {
-        await fetch(GAS_WEB_APP_URL, {
+        // แปลงไฟล์สลิปเป็น Base64
+        const base64Slip = await convertFileToBase64(slipInput.files[0]);
+        const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+        const payload = {
+          displayName: displayName,
+          orderType: orderType,
+          items: cart,
+          totalPrice: totalPrice,
+          slipImage: base64Slip
+        };
+
+        // ⚠️ แทนที่ URL ด้านล่างนี้ด้วย Web App URL ล่าสุดจาก Google Apps Script ของพี่
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwzkCcKnFFNy14eRcWJbv2aXXmiol8dK1eJg5r0pMdaKAhYbpgq6ugFoGcLX3K3qKJq/exec";
+
+        const response = await fetch(GAS_WEB_APP_URL, {
           method: "POST",
-          mode: "cors",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
-        let summaryText = `🧾 สั่งซื้อสำเร็จ (${currentOrderType})\n`;
-        selectedItems.forEach(i => { summaryText += `• ${i.name} x${i.qty} = ${i.price * i.qty} บ.\n`; });
-        summaryText += `\n💰 ยอดโอน: ${totalPrice} บาท\n✅ แนบสลิปเรียบร้อย`;
+        const result = await response.json();
 
-        if (liff.isInClient()) {
-          await liff.sendMessages([{ type: "text", text: summaryText }]);
+        if (result.result === "success") {
+          alert("🎉 สั่งซื้อสำเร็จและบันทึกข้อมูลลง Google Sheets เรียบร้อยแล้วครับ!");
+          cart = [];
+          renderCart();
+          document.getElementById("customerName").value = "";
+          slipInput.value = "";
+        } else {
+          alert("❌ เกิดข้อผิดพลาดจากระบบหลังบ้าน: " + (result.error || "ไม่ทราบสาเหตุ"));
         }
 
-        alert("สั่งซื้อสำเร็จ!");
-        liff.closeWindow();
-      } catch (err) {
-        alert("เกิดข้อผิดพลาด: " + err.message);
+      } catch (error) {
+        console.error("Error:", error);
+        alert("⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อ (Failed to fetch) กรุณาตรวจสอบลิงก์ Web App อีกครั้งครับ");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "ยืนยันการสั่งซื้อและส่งสลิป";
       }
     }
 
-    init();
+    // ฟังก์ชันแปลงไฟล์เป็น Base64
+    function convertFileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
   </script>
 </body>
 </html>
