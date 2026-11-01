@@ -206,10 +206,18 @@
     }
 
 
+
     function waitForGasResponse(orderId, timeoutMs) {
       return new Promise((resolve, reject) => {
-    
         const iframe = document.getElementById("gas-response-frame");
+    
+        if (!iframe) {
+          reject(new Error("ไม่พบ gas-response-frame"));
+          return;
+        }
+    
+        console.log("========== GAS REQUEST ==========");
+        console.log("Expected Order ID:", orderId);
     
         const form = document.createElement("form");
         form.method = "POST";
@@ -225,6 +233,8 @@
         form.appendChild(input);
         document.body.appendChild(form);
     
+        let finished = false;
+    
         const cleanup = () => {
           window.removeEventListener("message", onMessage);
           clearTimeout(timer);
@@ -232,136 +242,66 @@
         };
     
         const onMessage = event => {
+          console.log("========== MESSAGE EVENT ==========");
+          console.log("Origin:", event.origin);
+          console.log("Source:", event.source);
+          console.log("Data:", event.data);
+    
           const message = event.data;
     
-          console.log("GAS MESSAGE RECEIVED:", message);
-    
           if (!message || message.source !== "SANGWAT_ORDER_GAS") {
+            console.log("Ignored: Invalid message source");
             return;
           }
     
-          if (!message.result) {
-            console.warn("GAS response has no result");
+          const result = message.result;
+    
+          if (!result) {
+            console.log("Ignored: Missing result");
             return;
           }
     
-          console.log("EXPECTED ORDER ID:", orderId);
-          console.log("RECEIVED ORDER ID:", message.result.orderId);
+          console.log("Expected ID:", orderId);
+          console.log("Returned ID:", result.orderId);
+          console.log("Returned status:", result.result);
     
-          if (message.result.orderId !== orderId) {
-            console.warn("ORDER ID MISMATCH");
+          if (result.orderId !== orderId) {
+            console.log("Ignored: Order ID mismatch");
             return;
           }
     
+          if (finished) return;
+          finished = true;
           cleanup();
     
-          if (message.result.result === "success") {
-            resolve(message.result);
+          if (result.result === "success") {
+            resolve(result);
           } else {
             reject(new Error(
-              message.result.error ||
-              message.result.message ||
-              "Google Apps Script บันทึกข้อมูลไม่สำเร็จ"
+              result.error || result.message || "GAS returned error"
             ));
           }
         };
     
         const timer = setTimeout(() => {
+          if (finished) return;
+    
+          finished = true;
           cleanup();
     
+          console.error("GAS RESPONSE TIMEOUT");
           reject(new Error(
-            "หมดเวลารอผลจาก Google Apps Script กรุณาตรวจสอบชีต Orders ก่อนกดส่งซ้ำ"
+            "Timeout: ไม่ได้รับ Response ที่ตรงกับ Order ID"
           ));
         }, timeoutMs);
     
         window.addEventListener("message", onMessage);
     
+        console.log("Submitting form to GAS...");
         form.submit();
       });
     }
 
-    function buildPayload(orderId) {
-      const selectedItems = menuData
-        .filter(item => (cart[item.id] || 0) > 0)
-        .map(item => ({
-          id: item.id,
-          name: item.name,
-          qty: cart[item.id]
-        }));
-
-      return {
-        orderId: orderId,
-        userId: userProfile ? userProfile.userId : "Guest",
-        displayName: userProfile ? userProfile.displayName : "Customer",
-        orderType: currentOrderType,
-        items: selectedItems,
-        slipImage: base64Slip
-      };
-    }
-
-    async function submitOrder() {
-      if (isSubmitting) return;
-
-      const selectedItems = menuData.filter(item => (cart[item.id] || 0) > 0);
-      if (!selectedItems.length) {
-        alert("กรุณาเลือกสินค้า");
-        return;
-      }
-      if (!base64Slip) {
-        alert("กรุณาแนบสลิปการโอนเงิน");
-        return;
-      }
-
-      const button = document.getElementById("submit-button");
-      isSubmitting = true;
-      button.disabled = true;
-      button.textContent = "กำลังบันทึกคำสั่งซื้อ...";
-
-      // สร้าง ID คงที่ระหว่างรอผล เพื่อป้องกันคำสั่งซื้อซ้ำ
-      pendingOrderId = pendingOrderId || (
-        "SW" + Date.now() + Math.random().toString(36).slice(2, 8)
-      );
-
-      try {
-        const result = await waitForGasResponse(pendingOrderId, 60000);
-
-        let summary = `🧾 สั่งซื้อสำเร็จ (${currentOrderType})\n`;
-        selectedItems.forEach(item => {
-          const price = currentOrderType === "ปลีก" ? Number(item.retailPrice) : Number(item.wholesalePrice);
-          summary += `• ${item.name} x${cart[item.id]} = ${price * cart[item.id]} บ.\n`;
-        });
-        summary += `\n💰 ยอดรวม: ${Number(result.totalPrice).toLocaleString("th-TH")} บาท\nเลขที่คำสั่งซื้อ: ${result.orderId}`;
-
-        alert("บันทึกคำสั่งซื้อและสลิปเรียบร้อยแล้ว");
-
-        // การส่ง LINE เป็นขั้นตอนแจ้งเตือนแยกต่างหาก ไม่ทำให้ Order ที่บันทึกแล้วกลายเป็น Error
-        try {
-          if (window.liff && liff.isInClient()) {
-            await liff.sendMessages([{ type: "text", text: summary }]);
-          }
-        } catch (lineErr) {
-          console.warn("บันทึก Order สำเร็จ แต่ส่งข้อความ LINE ไม่สำเร็จ:", lineErr);
-        }
-
-        cart = {};
-        base64Slip = "";
-        document.getElementById("slipFile").value = "";
-        document.getElementById("preview").textContent = "";
-        pendingOrderId = null;
-
-        if (window.liff && liff.isInClient()) {
-          liff.closeWindow();
-        }
-      } catch (err) {
-        console.error("Submit order failed:", err);
-        alert("บันทึกคำสั่งซื้อไม่สำเร็จ\n\n" + err.message +
-          "\n\nกรุณาอย่ากดส่งซ้ำทันที หากไม่แน่ใจว่าระบบบันทึกแล้วหรือไม่ ให้ตรวจสอบชีต Orders ก่อน");
-      } finally {
-        isSubmitting = false;
-        button.disabled = false;
-        button.textContent = "ยืนยันการสั่งซื้อ";
-      }
-    }
 
     function escapeHtml(value) {
       return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
